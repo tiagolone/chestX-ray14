@@ -124,6 +124,7 @@ class chestXrayExplorer(object):
                 self.done = True
 
     def run(self, item):
+        esc = False
         self.cur_item = item
 
         # Let's create our working window and set a mouse callback to handle events
@@ -156,6 +157,7 @@ class chestXrayExplorer(object):
             
             # And wait 50ms before next iteration (this will pump window messages meanwhile)
             if cv2.waitKey(50) == 27: # ESC hit
+                esc = True
                 self.done = True
 
         # And show it
@@ -170,7 +172,7 @@ class chestXrayExplorer(object):
         #cv2.imshow(self.window_name, result)
         #cv2.waitKey()
 
-        return canvas
+        return esc
 
 # ============================================================================
 
@@ -192,16 +194,17 @@ if __name__ == "__main__":
     print(df.columns.values)
 
     index = 0
+    mask_mode = False
     while True:
         item = Item(index, df)
 
-        print("Image: ", item.get_description())
-        print("Labels: ", item.get_labels())
+        #print("Image: ", item.get_description())
+        #print("Labels: ", item.get_labels())
         cv2.putText(item.img, item.get_description(), (20,20), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.75, (0,255,255))
         cv2.putText(item.img, item.get_labels(), (20,40), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.75, (0,255,255))
 
         if item.box_available:
-            print("Box: ", item.box_label, item.box_x, item.box_y, item.box_w, item.box_h)        
+            #print("Box: ", item.box_label, item.box_x, item.box_y, item.box_w, item.box_h)        
             cv2.rectangle(item.img, (item.box_x, item.box_y), (item.box_x+item.box_w, item.box_y+item.box_h), (0,255,0), 1)
             cv2.putText(item.img,item.box_label, (item.box_x,item.box_x+item.box_h+20), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0,255,255))
 
@@ -216,45 +219,63 @@ if __name__ == "__main__":
         cv2.namedWindow("X-Ray Image")
         cv2.imshow("X-Ray Image", canvas)
         
-        # Keyboard
-        keycode = cv2.waitKey()
-        if keycode == KEY_ESC:
-            break
-        elif keycode == KEY_LEFT:
-            if index==0:
-                index = df.shape[0]-1 
-            else:
-                index -= 1
-        elif keycode == KEY_RIGHT:
-            if index<df.shape[0]-1:
-                index += 1
-            else:
-                index = 0
-        elif keycode == KEY_M or keycode == KEY_DOWN:
+        if(mask_mode):
             explorer = chestXrayExplorer("X-Ray Image")
-            image = explorer.run(item)
-            #cv2.imwrite("polygon.png", image)
-            #print("Polygon Left = %s" % item.points_left)
-            df.iat[index, 21] = item.points_left
-            #print("Polygon Right = %s" % item.points_right)
-            df.iat[index, 22] = item.points_right
+            if explorer.run(item):
+                mask_mode = False
+            else:
+                #cv2.imwrite("polygon.png", image)
+                #print("Polygon Left = %s" % item.points_left)
+                df.iat[index, 21] = item.points_left
+                #print("Polygon Right = %s" % item.points_right)
+                df.iat[index, 22] = item.points_right
 
-            #print(df.ix[index, 21])
-            #print(df.ix[index, 22])
-        elif keycode == KEY_R:
-            df.iat[index, 21] = ''
-            df.iat[index, 22] = ''
-        elif keycode == KEY_S:
-            header = ['Image Index', 'points_left_lung', 'points_right_lung']
+                if index<df.shape[0]-1:
+                    index += 1
+                else:
+                    index = 0
 
-            timestampTime = time.strftime("%H%M%S")
-            timestampDate = time.strftime("%d%m%Y")
-            timestampLaunch = timestampDate + '-' + timestampTime
-            fileName = 'out-' + timestampLaunch + '.csv'
-
-            df.to_csv(fileName, columns = header, index=False)
+                if (index % 10)==0:
+                    timestampTime = time.strftime("%H:%M:%S")
+                    timestampDate = time.strftime("%d/%m/%Y")
+                    timestampLaunch = timestampDate + '-' + timestampTime
+                    print('[' + timestampDate + ' - ' + timestampTime + ']: ' + 'Autosaving... ')
+                    header = ['Image Index', 'points_left_lung', 'points_right_lung']
+                    if (index % 100)==0:
+                        df.to_csv('autosave.10.csv', columns = header, index=False)
+                    else:
+                        df.to_csv('autosave.100.csv', columns = header, index=False)
         else:
-            print(keycode)
+            # Keyboard
+            keycode = cv2.waitKey()
+            if keycode == KEY_ESC:
+                break
+            elif keycode == KEY_LEFT:
+                if index==0:
+                    index = df.shape[0]-1 
+                else:
+                    index -= 1
+            elif keycode == KEY_RIGHT:
+                if index<df.shape[0]-1:
+                    index += 1
+                else:
+                    index = 0
+            elif keycode == KEY_M or keycode == KEY_DOWN:
+                mask_mode = not mask_mode
+            elif keycode == KEY_R:
+                df.iat[index, 21] = ''
+                df.iat[index, 22] = ''
+            elif keycode == KEY_S:
+                header = ['Image Index', 'points_left_lung', 'points_right_lung']
+
+                timestampTime = time.strftime("%H%M%S")
+                timestampDate = time.strftime("%d%m%Y")
+                timestampLaunch = timestampDate + '-' + timestampTime
+                fileName = 'out-' + timestampLaunch + '.csv'
+
+                df.to_csv(fileName, columns = header, index=False)
+            else:
+                print(keycode)
             
 
 
