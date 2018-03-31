@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import pandas as pd
 import ast
+import time
 
 DATA_DIR = '/media/tiagolone/Extra/xray/'
 IMAGE_DIR = '/media/tiagolone/Extra/xray/images/unzipped/'
@@ -12,6 +13,7 @@ CLASS_NAMES = [ 'Atelectasis', 'Cardiomegaly', 'Effusion', 'Infiltration', 'Mass
 
 KEY_LEFT = 81
 KEY_RIGHT = 83
+KEY_DOWN = 84
 KEY_ESC = 27
 KEY_M = 109
 KEY_R = 114
@@ -105,19 +107,19 @@ class chestXrayExplorer(object):
         elif event == cv2.EVENT_LBUTTONDOWN:
             # Left click means adding a point at current position to the list of points
             if self.state == self.STATE_LEFT:
-                print("Adding point #%d with position(%d,%d)" % (len(self.cur_item.points_left), x, y))
+                #print("Adding point #%d with position(%d,%d)" % (len(self.cur_item.points_left), x, y))
                 self.cur_item.points_left.append((x, y))
             else:
-                print("Adding point #%d with position(%d,%d)" % (len(self.cur_item.points_right), x, y))
+                #print("Adding point #%d with position(%d,%d)" % (len(self.cur_item.points_right), x, y))
                 self.cur_item.points_right.append((x, y))
         elif event == cv2.EVENT_RBUTTONDOWN:
             # Right click means we're done
 
             if self.state == self.STATE_LEFT:
-                print("Completing polygon with %d points." % len(self.cur_item.points_left))
+                #print("Completing polygon with %d points." % len(self.cur_item.points_left))
                 self.state = self.STATE_RIGHT
             else:
-                print("Completing polygon with %d points." % len(self.cur_item.points_right))
+                #print("Completing polygon with %d points." % len(self.cur_item.points_right))
                 self.state = self.STATE_DONE
                 self.done = True
 
@@ -157,16 +159,16 @@ class chestXrayExplorer(object):
                 self.done = True
 
         # And show it
-        cv2.imshow(self.window_name, canvas)
-        cv2.waitKey()
+        #cv2.imshow(self.window_name, canvas)
+        #cv2.waitKey()
 
-        stencil = np.zeros(item.img.shape).astype(item.img.dtype)
-        contours = [np.array([self.cur_item.points_left]), np.array([self.cur_item.points_right])]
-        color = [255, 255, 255]
-        cv2.fillPoly(stencil, contours, color)
-        result = cv2.bitwise_and(item.img, stencil)
-        cv2.imshow(self.window_name, result)
-        cv2.waitKey()
+        #stencil = np.zeros(item.img.shape).astype(item.img.dtype)
+        #contours = [np.array([self.cur_item.points_left]), np.array([self.cur_item.points_right])]
+        #color = [255, 255, 255]
+        #cv2.fillPoly(stencil, contours, color)
+        #result = cv2.bitwise_and(item.img, stencil)
+        #cv2.imshow(self.window_name, result)
+        #cv2.waitKey()
 
         return canvas
 
@@ -228,23 +230,29 @@ if __name__ == "__main__":
                 index += 1
             else:
                 index = 0
-        elif keycode == KEY_M:
+        elif keycode == KEY_M or keycode == KEY_DOWN:
             explorer = chestXrayExplorer("X-Ray Image")
             image = explorer.run(item)
             #cv2.imwrite("polygon.png", image)
-            print("Polygon Left = %s" % item.points_left)
+            #print("Polygon Left = %s" % item.points_left)
             df.iat[index, 21] = item.points_left
-            print("Polygon Right = %s" % item.points_right)
+            #print("Polygon Right = %s" % item.points_right)
             df.iat[index, 22] = item.points_right
 
-            print(df.ix[index, 21])
-            print(df.ix[index, 22])
+            #print(df.ix[index, 21])
+            #print(df.ix[index, 22])
         elif keycode == KEY_R:
             df.iat[index, 21] = ''
             df.iat[index, 22] = ''
         elif keycode == KEY_S:
             header = ['Image Index', 'points_left_lung', 'points_right_lung']
-            df.to_csv('output.csv', columns = header, index=False)
+
+            timestampTime = time.strftime("%H%M%S")
+            timestampDate = time.strftime("%d%m%Y")
+            timestampLaunch = timestampDate + '-' + timestampTime
+            fileName = 'out-' + timestampLaunch + '.csv'
+
+            df.to_csv(fileName, columns = header, index=False)
         else:
             print(keycode)
             
